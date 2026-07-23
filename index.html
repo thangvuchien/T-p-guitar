@@ -3,19 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Guitar Metronome & Speed Trainer (v9)</title>
+  <title>Guitar Chord Trainer v8 (Perfect Balance)</title>
   <style>
     :root {
       --bg: #0f172a;
       --card: #1e293b;
       --accent: #10b981;
       --accent-hover: #059669;
+      --warning: #f59e0b;
+      --text: #f8fafc;
       --subtext: #94a3b8;
     }
     body {
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       background: var(--bg);
-      color: #fff;
+      color: var(--text);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -42,68 +44,74 @@
       display: inline-block;
       margin-bottom: 12px;
     }
-    .controls-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 20px;
+    .timer-score {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 15px;
       background: #0f172a;
-      padding: 12px;
+      padding: 12px 20px;
       border-radius: 12px;
     }
-    .control-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      font-size: 0.8rem;
+    .stat-box .val {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--accent);
+    }
+    .stat-box .lbl {
+      font-size: 0.75rem;
       color: var(--subtext);
-    }
-    .control-item select, .control-item input {
-      background: #334155;
-      color: #fff;
-      border: none;
-      padding: 6px 10px;
-      border-radius: 8px;
-      margin-top: 5px;
-      font-weight: bold;
-      text-align: center;
-      width: 80%;
-    }
-    .chord-display {
-      margin: 20px 0;
+      text-transform: uppercase;
     }
     .target-chord {
-      font-size: 6rem;
+      font-size: 5.5rem;
       font-weight: 900;
+      margin: 0;
       color: #ffffff;
-      line-height: 1;
       text-shadow: 0 0 25px rgba(16, 185, 129, 0.4);
     }
-    .next-chord-box {
+    .chord-notes {
+      font-size: 0.95rem;
+      color: var(--subtext);
+      margin-bottom: 15px;
+    }
+    .status-box {
       background: #0f172a;
       border: 1px solid #334155;
-      padding: 10px;
+      padding: 12px;
       border-radius: 12px;
-      margin-bottom: 20px;
-      font-size: 0.9rem;
-      color: var(--subtext);
+      margin-bottom: 15px;
     }
-    .next-chord-box b {
-      color: #38bdf8;
-      font-size: 1.2rem;
+    .strum-state {
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-block;
+      margin-bottom: 8px;
     }
-    .progress-bar-bg {
+    .state-waiting { background: #334155; color: var(--warning); }
+    .state-ready { background: #064e3b; color: var(--accent); }
+
+    .notes-match-status {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 6px;
+    }
+    .note-tag {
       background: #334155;
-      height: 8px;
-      border-radius: 4px;
-      overflow: hidden;
-      margin-bottom: 20px;
+      color: #64748b;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 1.1rem;
+      transition: all 0.15s;
     }
-    .progress-bar-fill {
+    .note-tag.active {
       background: var(--accent);
-      height: 100%;
-      width: 100%;
-      transition: width 0.1s linear;
+      color: #000;
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.6);
+      transform: scale(1.05);
     }
     .btn {
       background: var(--accent);
@@ -115,151 +123,306 @@
       font-weight: 700;
       cursor: pointer;
       width: 100%;
-      transition: all 0.2s;
     }
-    .btn:hover { background: var(--accent-hover); }
-    .btn-stop {
-      background: #ef4444;
+    .btn-secondary {
+      background: #334155;
       color: #fff;
+      margin-top: 8px;
+    }
+    canvas {
+      width: 100%;
+      height: 35px;
+      background: #0f172a;
+      border-radius: 8px;
+      margin-top: 12px;
+    }
+    .flash-success {
+      animation: flashGreen 0.3s ease-out;
+    }
+    @keyframes flashGreen {
+      0% { background: #064e3b; }
+      100% { background: var(--card); }
     }
   </style>
 </head>
 <body>
 
-<div class="app-card">
-  <span class="badge">⏱️ Rhythm & Speed Precision Trainer</span>
-
-  <div class="controls-grid">
-    <div class="control-item">
-      <span>Tốc độ đổi (Giây):</span>
-      <select id="speedSelect" onchange="resetTimer()">
-        <option value="5">5 Giây (Chậm)</option>
-        <option value="4">4 Giây</option>
-        <option value="3" selected>3 Giây (Vừa)</option>
-        <option value="2">2 Giây (Nhanh)</option>
-        <option value="1.5">1.5 Giây (Siêu nhanh)</option>
-      </select>
+<div class="app-card" id="card">
+  <span class="badge">⚖️ Perfect Balance Engine (v8)</span>
+  
+  <div class="timer-score">
+    <div class="stat-box">
+      <div class="val" id="time">60</div>
+      <div class="lbl">Thời gian (s)</div>
     </div>
-    <div class="control-item">
-      <span>Âm gõ nhịp:</span>
-      <select id="soundSelect">
-        <option value="on">Bật Metronome</option>
-        <option value="off">Tắt âm</option>
-      </select>
+    <div class="stat-box">
+      <div class="val" id="score">0</div>
+      <div class="lbl">Số hợp âm</div>
     </div>
   </div>
 
-  <div class="chord-display">
-    <div style="font-size:0.85rem; color: var(--subtext)">ĐÁNH HỢP ÂM NÀY:</div>
-    <div class="target-chord" id="currChord">C</div>
+  <div style="font-size:0.85rem; color: var(--subtext)">ĐÁNH HỢP ÂM NÀY:</div>
+  <div class="target-chord" id="targetChord">C</div>
+  <div class="chord-notes" id="chordNotes">Cần vang: C - E - G</div>
+
+  <div class="status-box">
+    <div id="strumStateBadge" class="strum-state state-ready">⚡ Sẵn sàng nhận cú gảy</div>
+    <div class="notes-match-status" id="notesMatchStatus"></div>
   </div>
 
-  <div class="next-chord-box">
-    Chuẩn bị ngón cho hợp âm tiếp theo: <b id="nextChord">G</b>
-  </div>
+  <button class="btn" id="startBtn" onclick="toggleApp()">Bắt đầu Bật Mic & Tập</button>
+  <button class="btn btn-secondary" onclick="nextChord()">Bỏ qua (Chuyển Hợp Âm)</button>
 
-  <div class="progress-bar-bg">
-    <div class="progress-bar-fill" id="progressFill"></div>
-  </div>
-
-  <button class="btn" id="toggleBtn" onclick="toggleTrainer()">Bắt Đầu Tập Ngay</button>
+  <canvas id="visualizer"></canvas>
 </div>
 
 <script>
-  const CHORDS = ['C', 'G', 'Am', 'Em', 'Dm', 'D', 'E', 'F'];
-  
-  let audioCtx;
-  let isRunning = false;
-  let currIdx = 0;
-  let nextIdx = 1;
-  let intervalId = null;
-  let progressIntervalId = null;
-  let intervalTime = 3000;
-  let startTime = 0;
+  const CHORDS = [
+    { name: 'C', notes: ['C', 'E', 'G'] },
+    { name: 'G', notes: ['G', 'B', 'D'] },
+    { name: 'Am', notes: ['A', 'C', 'E'] },
+    { name: 'Em', notes: ['E', 'G', 'B'] },
+    { name: 'Dm', notes: ['D', 'F', 'A'] },
+    { name: 'D', notes: ['D', 'F#', 'A'] },
+    { name: 'E', notes: ['E', 'G#', 'B'] }
+  ];
 
-  function getRandomIdx(exclude) {
-    let idx;
+  const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+  let audioCtx, analyser, highpassFilter;
+  let isRunning = false;
+  let score = 0;
+  let timeLeft = 60;
+  let timerInterval;
+  let currentChordIdx = 0;
+
+  let readyForNewStrum = true;
+  let previousVolume = 0;
+
+  function getRandomChordIdx() {
+    let newIdx;
     do {
-      idx = Math.floor(Math.random() * CHORDS.length);
-    } while (idx === exclude);
-    return idx;
+      newIdx = Math.floor(Math.random() * CHORDS.length);
+    } while (newIdx === currentChordIdx);
+    return newIdx;
   }
 
-  function playTick(isHigh = false) {
-    if (document.getElementById('soundSelect').value === 'off') return;
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  function updateChordUI() {
+    const chord = CHORDS[currentChordIdx];
+    document.getElementById('targetChord').innerText = chord.name;
+    document.getElementById('chordNotes').innerText = "Cần vang: " + chord.notes.join(' - ');
 
+    const container = document.getElementById('notesMatchStatus');
+    container.innerHTML = '';
+    chord.notes.forEach(note => {
+      const tag = document.createElement('div');
+      tag.className = 'note-tag';
+      tag.id = `note-tag-${note.replace('#', 's')}`;
+      tag.innerText = note;
+      container.appendChild(tag);
+    });
+  }
+
+  function playSuccessSound() {
+    if (!audioCtx) return;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
-    
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(isHigh ? 800 : 400, audioCtx.currentTime);
-    
-    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
-
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
     osc.connect(gain);
     gain.connect(audioCtx.destination);
-    
     osc.start();
-    osc.stop(audioCtx.currentTime + 0.05);
+    osc.stop(audioCtx.currentTime + 0.2);
   }
 
-  function updateChords() {
-    currIdx = nextIdx;
-    nextIdx = getRandomIdx(currIdx);
+  function triggerHit() {
+    score++;
+    document.getElementById('score').innerText = score;
+    playSuccessSound();
 
-    document.getElementById('currChord').innerText = CHORDS[currIdx];
-    document.getElementById('nextChord').innerText = CHORDS[nextIdx];
-    
-    playTick(true);
-    startTime = Date.now();
+    readyForNewStrum = false;
+    updateStrumBadge(false);
+
+    const card = document.getElementById('card');
+    card.classList.remove('flash-success');
+    void card.offsetWidth;
+    card.classList.add('flash-success');
+
+    currentChordIdx = getRandomChordIdx();
+    updateChordUI();
   }
 
-  function resetTimer() {
-    intervalTime = parseFloat(document.getElementById('speedSelect').value) * 1000;
-    if (isRunning) {
-      clearInterval(intervalId);
-      clearInterval(progressIntervalId);
-      startLoop();
+  function updateStrumBadge(isReady) {
+    const badge = document.getElementById('strumStateBadge');
+    if (isReady) {
+      badge.className = "strum-state state-ready";
+      badge.innerText = "⚡ Sẵn sàng nhận cú gảy";
+    } else {
+      badge.className = "strum-state state-waiting";
+      badge.innerText = "⏳ Hãy quạt một nhịp mới...";
     }
   }
 
-  function startLoop() {
-    startTime = Date.now();
-    intervalId = setInterval(updateChords, intervalTime);
-
-    progressIntervalId = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const remainingPct = Math.max(0, 100 - (elapsed / intervalTime) * 100);
-      document.getElementById('progressFill').style.width = remainingPct + '%';
-    }, 30);
+  function nextChord() {
+    currentChordIdx = getRandomChordIdx();
+    updateChordUI();
+    readyForNewStrum = true;
+    updateStrumBadge(true);
   }
 
-  function toggleTrainer() {
-    const btn = document.getElementById('toggleBtn');
-    
-    if (!isRunning) {
+  async function toggleApp() {
+    if (isRunning) return;
+
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: false
+        } 
+      });
+
+      const source = audioCtx.createMediaStreamSource(stream);
+
+      // Lọc cắt tần số nhiễu gió trầm dưới 130Hz
+      highpassFilter = audioCtx.createBiquadFilter();
+      highpassFilter.type = 'highpass';
+      highpassFilter.frequency.setValueAtTime(130, audioCtx.currentTime);
+
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 4096;
+
+      source.connect(highpassFilter);
+      highpassFilter.connect(analyser);
+
       isRunning = true;
-      btn.innerText = "Dừng Tập";
-      btn.classList.add('btn-stop');
+      score = 0;
+      timeLeft = 60;
+      readyForNewStrum = true;
+      document.getElementById('score').innerText = score;
+      document.getElementById('time').innerText = timeLeft;
+      document.getElementById('startBtn').innerText = "Đang chạy đếm giờ (60s)...";
+      document.getElementById('startBtn').style.opacity = "0.7";
 
-      currIdx = Math.floor(Math.random() * CHORDS.length);
-      nextIdx = getRandomIdx(currIdx);
-      document.getElementById('currChord').innerText = CHORDS[currIdx];
-      document.getElementById('nextChord').innerText = CHORDS[nextIdx];
+      currentChordIdx = Math.floor(Math.random() * CHORDS.length);
+      updateChordUI();
 
-      intervalTime = parseFloat(document.getElementById('speedSelect').value) * 1000;
-      playTick(true);
-      startLoop();
-    } else {
-      isRunning = false;
-      btn.innerText = "Bắt Đầu Tập Ngay";
-      btn.classList.remove('btn-stop');
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        document.getElementById('time').innerText = timeLeft;
+        if (timeLeft <= 0) endGame();
+      }, 1000);
 
-      clearInterval(intervalId);
-      clearInterval(progressIntervalId);
-      document.getElementById('progressFill').style.width = '100%';
+      processAudio();
+    } catch (err) {
+      alert("Cần cấp quyền truy cập Micro để ứng dụng hoạt động!");
+    }
+  }
+
+  function endGame() {
+    clearInterval(timerInterval);
+    isRunning = false;
+    document.getElementById('startBtn').innerText = "Thử lại lượt mới";
+    document.getElementById('startBtn').style.opacity = "1";
+    alert(`🎉 Hết giờ! Bạn đã đánh chính xác ${score} hợp âm!`);
+  }
+
+  function getChromaAndVolume(analyser, sampleRate) {
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Float32Array(bufferLength);
+    analyser.getFloatFrequencyData(dataArray);
+
+    const chroma = new Float32Array(12).fill(0);
+    let totalEnergy = 0;
+
+    for (let i = 1; i < bufferLength; i++) {
+      const freq = i * sampleRate / analyser.fftSize;
+      
+      if (freq >= 130 && freq <= 1200) {
+        const db = dataArray[i];
+        if (db > -68) {
+          const mag = Math.pow(10, db / 20);
+          totalEnergy += mag;
+          const midiNote = Math.round(12 * Math.log2(freq / 440) + 69);
+          const noteIdx = (midiNote % 12 + 12) % 12;
+          chroma[noteIdx] += mag;
+        }
+      }
+    }
+    return { chroma, volume: totalEnergy };
+  }
+
+  function processAudio() {
+    if (!isRunning) return;
+
+    const { chroma, volume } = getChromaAndVolume(analyser, audioCtx.sampleRate);
+    const targetChord = CHORDS[currentChordIdx];
+
+    const volumeSpike = volume - previousVolume;
+    if (!readyForNewStrum) {
+      if (volumeSpike > 0.08 || volume < 0.005) {
+        readyForNewStrum = true;
+        updateStrumBadge(true);
+      }
+    }
+    previousVolume = volume;
+
+    if (readyForNewStrum && volume > 0.02) {
+      const totalChromaSum = chroma.reduce((a, b) => a + b, 0);
+
+      let chordEnergySum = 0;
+      let matchedNotesCount = 0;
+
+      targetChord.notes.forEach(note => {
+        const noteIdx = NOTE_NAMES.indexOf(note);
+        const tag = document.getElementById(`note-tag-${note.replace('#', 's')}`);
+        
+        chordEnergySum += chroma[noteIdx];
+
+        if (chroma[noteIdx] / (totalChromaSum + 0.0001) > 0.09) {
+          if (tag) tag.classList.add('active');
+          matchedNotesCount++;
+        } else {
+          if (tag) tag.classList.remove('active');
+        }
+      });
+
+      const harmonicRatio = chordEnergySum / (totalChromaSum + 0.0001);
+
+      if (harmonicRatio > 0.42 && matchedNotesCount === targetChord.notes.length) {
+        triggerHit();
+      }
+    } else if (!readyForNewStrum) {
+      targetChord.notes.forEach(note => {
+        const tag = document.getElementById(`note-tag-${note.replace('#', 's')}`);
+        if (tag) tag.classList.remove('active');
+      });
+    }
+
+    drawVisualizer();
+    requestAnimationFrame(processAudio);
+  }
+
+  function drawVisualizer() {
+    const canvas = document.getElementById('visualizer');
+    const ctx = canvas.getContext('2d');
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    analyser.getByteFrequencyData(dataArray);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const barWidth = (canvas.width / bufferLength) * 2.5;
+    let x = 0;
+
+    for (let i = 0; i < bufferLength; i++) {
+      const barHeight = dataArray[i] / 5;
+      ctx.fillStyle = readyForNewStrum ? '#10b981' : '#64748b';
+      ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+      x += barWidth + 1;
     }
   }
 </script>
