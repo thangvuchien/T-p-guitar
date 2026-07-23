@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guitar Metronome & Speed Trainer (v9)</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --accent: #10b981;
+      --accent-hover: #059669;
+      --subtext: #94a3b8;
+    }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 15px;
+    }
+    .app-card {
+      background: var(--card);
+      border-radius: 20px;
+      padding: 24px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);
+      text-align: center;
+    }
+    .badge {
+      background: #334155;
+      color: var(--accent);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: inline-block;
+      margin-bottom: 12px;
+    }
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 20px;
+      background: #0f172a;
+      padding: 12px;
+      border-radius: 12px;
+    }
+    .control-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-size: 0.8rem;
+      color: var(--subtext);
+    }
+    .control-item select, .control-item input {
+      background: #334155;
+      color: #fff;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 8px;
+      margin-top: 5px;
+      font-weight: bold;
+      text-align: center;
+      width: 80%;
+    }
+    .chord-display {
+      margin: 20px 0;
+    }
+    .target-chord {
+      font-size: 6rem;
+      font-weight: 900;
+      color: #ffffff;
+      line-height: 1;
+      text-shadow: 0 0 25px rgba(16, 185, 129, 0.4);
+    }
+    .next-chord-box {
+      background: #0f172a;
+      border: 1px solid #334155;
+      padding: 10px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      font-size: 0.9rem;
+      color: var(--subtext);
+    }
+    .next-chord-box b {
+      color: #38bdf8;
+      font-size: 1.2rem;
+    }
+    .progress-bar-bg {
+      background: #334155;
+      height: 8px;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .progress-bar-fill {
+      background: var(--accent);
+      height: 100%;
+      width: 100%;
+      transition: width 0.1s linear;
+    }
+    .btn {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      padding: 14px 28px;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+      transition: all 0.2s;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .btn-stop {
+      background: #ef4444;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-card">
+  <span class="badge">⏱️ Rhythm & Speed Precision Trainer</span>
+
+  <div class="controls-grid">
+    <div class="control-item">
+      <span>Tốc độ đổi (Giây):</span>
+      <select id="speedSelect" onchange="resetTimer()">
+        <option value="5">5 Giây (Chậm)</option>
+        <option value="4">4 Giây</option>
+        <option value="3" selected>3 Giây (Vừa)</option>
+        <option value="2">2 Giây (Nhanh)</option>
+        <option value="1.5">1.5 Giây (Siêu nhanh)</option>
+      </select>
+    </div>
+    <div class="control-item">
+      <span>Âm gõ nhịp:</span>
+      <select id="soundSelect">
+        <option value="on">Bật Metronome</option>
+        <option value="off">Tắt âm</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="chord-display">
+    <div style="font-size:0.85rem; color: var(--subtext)">ĐÁNH HỢP ÂM NÀY:</div>
+    <div class="target-chord" id="currChord">C</div>
+  </div>
+
+  <div class="next-chord-box">
+    Chuẩn bị ngón cho hợp âm tiếp theo: <b id="nextChord">G</b>
+  </div>
+
+  <div class="progress-bar-bg">
+    <div class="progress-bar-fill" id="progressFill"></div>
+  </div>
+
+  <button class="btn" id="toggleBtn" onclick="toggleTrainer()">Bắt Đầu Tập Ngay</button>
+</div>
+
+<script>
+  const CHORDS = ['C', 'G', 'Am', 'Em', 'Dm', 'D', 'E', 'F'];
+  
+  let audioCtx;
+  let isRunning = false;
+  let currIdx = 0;
+  let nextIdx = 1;
+  let intervalId = null;
+  let progressIntervalId = null;
+  let intervalTime = 3000;
+  let startTime = 0;
+
+  function getRandomIdx(exclude) {
+    let idx;
+    do {
+      idx = Math.floor(Math.random() * CHORDS.length);
+    } while (idx === exclude);
+    return idx;
+  }
+
+  function playTick(isHigh = false) {
+    if (document.getElementById('soundSelect').value === 'off') return;
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(isHigh ? 800 : 400, audioCtx.currentTime);
+    
+    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.05);
+  }
+
+  function updateChords() {
+    currIdx = nextIdx;
+    nextIdx = getRandomIdx(currIdx);
+
+    document.getElementById('currChord').innerText = CHORDS[currIdx];
+    document.getElementById('nextChord').innerText = CHORDS[nextIdx];
+    
+    playTick(true);
+    startTime = Date.now();
+  }
+
+  function resetTimer() {
+    intervalTime = parseFloat(document.getElementById('speedSelect').value) * 1000;
+    if (isRunning) {
+      clearInterval(intervalId);
+      clearInterval(progressIntervalId);
+      startLoop();
+    }
+  }
+
+  function startLoop() {
+    startTime = Date.now();
+    intervalId = setInterval(updateChords, intervalTime);
+
+    progressIntervalId = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const remainingPct = Math.max(0, 100 - (elapsed / intervalTime) * 100);
+      document.getElementById('progressFill').style.width = remainingPct + '%';
+    }, 30);
+  }
+
+  function toggleTrainer() {
+    const btn = document.getElementById('toggleBtn');
+    
+    if (!isRunning) {
+      isRunning = true;
+      btn.innerText = "Dừng Tập";
+      btn.classList.add('btn-stop');
+
+      currIdx = Math.floor(Math.random() * CHORDS.length);
+      nextIdx = getRandomIdx(currIdx);
+      document.getElementById('currChord').innerText = CHORDS[currIdx];
+      document.getElementById('nextChord').innerText = CHORDS[nextIdx];
+
+      intervalTime = parseFloat(document.getElementById('speedSelect').value) * 1000;
+      playTick(true);
+      startLoop();
+    } else {
+      isRunning = false;
+      btn.innerText = "Bắt Đầu Tập Ngay";
+      btn.classList.remove('btn-stop');
+
+      clearInterval(intervalId);
+      clearInterval(progressIntervalId);
+      document.getElementById('progressFill').style.width = '100%';
+    }
+  }
+</script>
+</body>
+</html>
