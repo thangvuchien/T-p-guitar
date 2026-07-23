@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Guitar Chord Trainer v8 (Perfect Balance)</title>
+  <title>Guitar Master Pro - AI Powered</title>
+  <!-- Nhúng TensorFlow.js cho AI Engine -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
   <style>
     :root {
       --bg: #0f172a;
@@ -11,9 +13,12 @@
       --accent: #10b981;
       --accent-hover: #059669;
       --warning: #f59e0b;
+      --danger: #ef4444;
+      --info: #38bdf8;
       --text: #f8fafc;
       --subtext: #94a3b8;
     }
+    * { box-sizing: border-box; }
     body {
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       background: var(--bg);
@@ -23,198 +28,743 @@
       align-items: center;
       min-height: 100vh;
       margin: 0;
-      padding: 15px;
+      padding: 12px;
     }
     .app-card {
       background: var(--card);
       border-radius: 20px;
-      padding: 24px;
+      padding: 18px;
       width: 100%;
-      max-width: 420px;
+      max-width: 460px;
       box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);
       text-align: center;
     }
-    .badge {
-      background: #334155;
-      color: var(--accent);
-      padding: 6px 14px;
-      border-radius: 20px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      display: inline-block;
+
+    /* Tabs Header */
+    .tab-header {
+      display: flex;
+      background: #0f172a;
+      padding: 4px;
+      border-radius: 12px;
       margin-bottom: 12px;
+      gap: 2px;
     }
+    .tab-btn {
+      flex: 1;
+      background: transparent;
+      color: var(--subtext);
+      border: none;
+      padding: 8px 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      background: var(--accent);
+      color: #000;
+    }
+
+    .ai-badge {
+      background: linear-gradient(135deg, #6366f1, #a855f7);
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.72rem;
+      font-weight: bold;
+      display: inline-block;
+      margin-bottom: 10px;
+    }
+
+    /* Filter Box */
+    .filter-section {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 10px;
+      margin-bottom: 12px;
+      text-align: left;
+    }
+    .filter-title {
+      font-size: 0.8rem;
+      font-weight: bold;
+      color: var(--info);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+    .preset-btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin: 8px 0;
+    }
+    .preset-btn {
+      background: #334155;
+      color: #94a3b8;
+      border: 1px solid #475569;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .preset-btn.active {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+    }
+    
+    .checkbox-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+      max-height: 110px;
+      overflow-y: auto;
+      padding-right: 4px;
+      margin-top: 6px;
+      border-top: 1px dashed #334155;
+      padding-top: 6px;
+    }
+    .checkbox-item {
+      font-size: 0.75rem;
+      color: var(--subtext);
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .checkbox-item input { accent-color: var(--accent); }
+
+    /* Tab Contents */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
     .timer-score {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 15px;
+      margin-bottom: 10px;
       background: #0f172a;
-      padding: 12px 20px;
-      border-radius: 12px;
+      padding: 8px 16px;
+      border-radius: 10px;
     }
-    .stat-box .val {
-      font-size: 1.8rem;
-      font-weight: 800;
-      color: var(--accent);
-    }
-    .stat-box .lbl {
-      font-size: 0.75rem;
-      color: var(--subtext);
-      text-transform: uppercase;
-    }
+    .stat-box .val { font-size: 1.5rem; font-weight: 800; color: var(--accent); }
+    .stat-box .lbl { font-size: 0.65rem; color: var(--subtext); text-transform: uppercase; }
+
     .target-chord {
-      font-size: 5.5rem;
+      font-size: 4.2rem;
       font-weight: 900;
       margin: 0;
       color: #ffffff;
-      text-shadow: 0 0 25px rgba(16, 185, 129, 0.4);
+      text-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+      line-height: 1;
     }
-    .chord-notes {
-      font-size: 0.95rem;
-      color: var(--subtext);
-      margin-bottom: 15px;
-    }
-    .status-box {
-      background: #0f172a;
-      border: 1px solid #334155;
-      padding: 12px;
-      border-radius: 12px;
-      margin-bottom: 15px;
-    }
-    .strum-state {
-      font-size: 0.85rem;
-      font-weight: 700;
-      padding: 4px 10px;
-      border-radius: 6px;
-      display: inline-block;
-      margin-bottom: 8px;
-    }
-    .state-waiting { background: #334155; color: var(--warning); }
-    .state-ready { background: #064e3b; color: var(--accent); }
 
-    .notes-match-status {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      margin-top: 6px;
-    }
-    .note-tag {
-      background: #334155;
-      color: #64748b;
-      padding: 6px 14px;
+    .toggle-box {
+      background: #0f172a;
+      padding: 6px 10px;
       border-radius: 8px;
-      font-weight: 700;
-      font-size: 1.1rem;
-      transition: all 0.15s;
+      margin: 8px 0;
+      font-size: 0.8rem;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-weight: bold;
     }
-    .note-tag.active {
-      background: var(--accent);
-      color: #000;
-      box-shadow: 0 0 12px rgba(16, 185, 129, 0.6);
-      transform: scale(1.05);
-    }
+    .toggle-box input { accent-color: var(--accent); width: 16px; height: 16px; }
+
     .btn {
       background: var(--accent);
       color: #000;
       border: none;
-      padding: 14px 28px;
-      border-radius: 12px;
-      font-size: 1rem;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 0.95rem;
       font-weight: 700;
       cursor: pointer;
       width: 100%;
+      transition: all 0.2s;
     }
-    .btn-secondary {
+    .btn:hover { background: var(--accent-hover); }
+    .btn-secondary { background: #334155; color: #fff; margin-top: 6px; }
+    .btn-stop { background: var(--danger); color: #fff; }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .control-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-size: 0.7rem;
+      color: var(--subtext);
+    }
+    .control-item select, .control-item input[type="number"] {
       background: #334155;
       color: #fff;
-      margin-top: 8px;
+      border: none;
+      padding: 5px 6px;
+      border-radius: 6px;
+      margin-top: 3px;
+      font-weight: bold;
+      width: 95%;
+      text-align: center;
     }
-    canvas {
+
+    .progress-bar-bg {
+      background: #334155;
+      height: 6px;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    .progress-bar-fill {
+      background: var(--accent);
+      height: 100%;
       width: 100%;
-      height: 35px;
+      transition: width 0.05s linear;
+    }
+
+    canvas.practice-canvas {
       background: #0f172a;
+      border-radius: 10px;
+      margin: 6px auto;
+      display: none;
+    }
+    select.chord-select {
+      background: #0f172a;
+      color: var(--accent);
+      border: 1px solid #334155;
+      padding: 8px;
+      font-size: 1rem;
+      font-weight: bold;
       border-radius: 8px;
-      margin-top: 12px;
+      width: 100%;
+      margin-bottom: 8px;
     }
-    .flash-success {
-      animation: flashGreen 0.3s ease-out;
+
+    /* Ear Training UI */
+    .ear-options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 12px 0;
     }
-    @keyframes flashGreen {
-      0% { background: #064e3b; }
-      100% { background: var(--card); }
+    .ear-btn {
+      background: #334155;
+      color: #fff;
+      border: 2px solid transparent;
+      padding: 12px;
+      font-size: 1.2rem;
+      font-weight: bold;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    .ear-btn.correct { background: var(--accent); color: #000; }
+    .ear-btn.wrong { background: var(--danger); color: #fff; }
+
+    .mic-vol-bar {
+      height: 4px;
+      background: #334155;
+      border-radius: 2px;
+      margin-top: 4px;
+      overflow: hidden;
+    }
+    .mic-vol-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      transition: width 0.05s linear;
+    }
+    .note-tag {
+      background: #334155;
+      color: #64748b;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 0.9rem;
+    }
+    .note-tag.active {
+      background: var(--accent);
+      color: #000;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
     }
   </style>
 </head>
 <body>
 
-<div class="app-card" id="card">
-  <span class="badge">⚖️ Perfect Balance Engine (v8)</span>
-  
-  <div class="timer-score">
-    <div class="stat-box">
-      <div class="val" id="time">60</div>
-      <div class="lbl">Thời gian (s)</div>
+<div class="app-card">
+  <span class="ai-badge">🤖 Powered by Spotify Basic Pitch AI</span>
+
+  <!-- Top Navigation Tabs -->
+  <div class="tab-header">
+    <button class="tab-btn active" onclick="switchTab('tab-mic')">🎤 Luyện AI</button>
+    <button class="tab-btn" onclick="switchTab('tab-metro')">⏱️ Luyện Nhịp</button>
+    <button class="tab-btn" onclick="switchTab('tab-ear')">👂 Luyện Nghe</button>
+    <button class="tab-btn" onclick="switchTab('tab-library')">📖 Tra Cứu</button>
+  </div>
+
+  <!-- BỘ LỌC TONE VÀ HỢP ÂM CHẶN / THĂNG GIÁNG -->
+  <div class="filter-section">
+    <div class="filter-title" onclick="toggleFilterBody()">
+      <span>⚙️ Tổ Hợp Tone Xuất Hiện (<span id="activeCountText">0</span> chọn)</span>
+      <span id="filterArrow">▼</span>
     </div>
-    <div class="stat-box">
-      <div class="val" id="score">0</div>
-      <div class="lbl">Số hợp âm</div>
+    <div id="filterBody" style="display:block; margin-top:8px;">
+      <div style="font-size:0.7rem; color:var(--subtext); margin-bottom:4px;">Bấm chọn kết hợp các nhóm:</div>
+      <div class="preset-btns">
+        <button class="preset-btn active" id="btn-preset-all" onclick="togglePreset('all')">Tất Cả</button>
+        <button class="preset-btn" id="btn-preset-C-Am" onclick="togglePreset('C-Am')">Tone C / Am</button>
+        <button class="preset-btn" id="btn-preset-G-Em" onclick="togglePreset('G-Em')">Tone G / Em</button>
+        <button class="preset-btn" id="btn-preset-barre" onclick="togglePreset('barre')">Hợp Âm Chặn 🎸</button>
+        <button class="preset-btn" id="btn-preset-sharp" onclick="togglePreset('sharp')">Thăng / Giáng (# / b)</button>
+        <button class="preset-btn" id="btn-preset-7-maj7" onclick="togglePreset('7-maj7')">Họ 7 / Maj7</button>
+        <button class="preset-btn" id="btn-preset-sus" onclick="togglePreset('sus')">Họ Sus</button>
+      </div>
+      <div class="checkbox-grid" id="checkboxGrid"></div>
     </div>
   </div>
 
-  <div style="font-size:0.85rem; color: var(--subtext)">ĐÁNH HỢP ÂM NÀY:</div>
-  <div class="target-chord" id="targetChord">C</div>
-  <div class="chord-notes" id="chordNotes">Cần vang: C - E - G</div>
+  <!-- TAB 1: LUYỆN MIC VỚI AI -->
+  <div id="tab-mic" class="tab-content active">
+    <div style="background:#0f172a; padding:6px 12px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+      <span style="font-size:0.75rem; color:var(--subtext);">Cài thời gian chơi:</span>
+      <select id="micTimeSelect" style="background:#334155; color:#fff; border:none; padding:4px 8px; border-radius:6px; font-weight:bold; font-size:0.8rem;">
+        <option value="30">30 Giây</option>
+        <option value="60" selected>60 Giây</option>
+        <option value="90">90 Giây</option>
+        <option value="120">120 Giây</option>
+        <option value="0">∞ Vô hạn</option>
+      </select>
+    </div>
 
-  <div class="status-box">
-    <div id="strumStateBadge" class="strum-state state-ready">⚡ Sẵn sàng nhận cú gảy</div>
-    <div class="notes-match-status" id="notesMatchStatus"></div>
+    <div class="timer-score">
+      <div class="stat-box"><div class="val" id="time1">60</div><div class="lbl">Thời gian (s)</div></div>
+      <div class="stat-box"><div class="val" id="score1">0</div><div class="lbl">Chính xác</div></div>
+    </div>
+    
+    <div style="font-size:0.75rem; color: var(--subtext)">ĐÁNH HỢP ÂM NÀY:</div>
+    <div class="target-chord" id="targetChord1">C</div>
+    
+    <div class="toggle-box">
+      <input type="checkbox" id="showDiagramMic" onchange="toggleDiagramMic()">
+      <label for="showDiagramMic">👁️ Hiện sơ đồ thế bấm</label>
+    </div>
+    <canvas id="canvasMic" class="practice-canvas" width="160" height="160"></canvas>
+
+    <div style="font-size:0.8rem; color: var(--subtext); margin-bottom:4px;" id="chordNotes1">Cần vang: C - E - G</div>
+
+    <div style="background:#0f172a; border:1px solid #334155; padding:8px; border-radius:10px; margin-bottom:10px;">
+      <div id="aiStatusText" style="font-size:0.75rem; font-weight:bold; color:var(--info);">⚡ Sẵn sàng nạp AI...</div>
+      <div class="mic-vol-bar"><div class="mic-vol-fill" id="micVolFill"></div></div>
+      <div id="detectedNotesText" style="font-size:0.75rem; color:var(--warning); margin-top:4px;">AI nghe thấy: --</div>
+      <div id="notesMatchStatus1" style="display:flex; justify-content:center; gap:6px; margin-top:6px;"></div>
+    </div>
+
+    <button class="btn" id="startBtn1" onclick="toggleMicApp()">⚡ Bật AI & Bắt Đầu Tập</button>
+    <button class="btn btn-secondary" onclick="nextChordMic()">Bỏ qua (Chuyển Hợp Âm)</button>
   </div>
 
-  <button class="btn" id="startBtn" onclick="toggleApp()">Bắt đầu Bật Mic & Tập</button>
-  <button class="btn btn-secondary" onclick="nextChord()">Bỏ qua (Chuyển Hợp Âm)</button>
+  <!-- TAB 2: LUYỆN NHỊP METRONOME -->
+  <div id="tab-metro" class="tab-content">
+    <div style="background:#0f172a; border:1px solid #334155; border-radius:10px; padding:10px; margin-bottom:10px;">
+      <div class="controls-grid">
+        <div class="control-item">
+          <span>Nhịp (Time Sig):</span>
+          <select id="timeSigSelect" onchange="resetMetroConfig()">
+            <option value="4" selected>4/4 (4 Phách)</option>
+            <option value="3">3/4 (3 Phách)</option>
+            <option value="2">2/4 (2 Phách)</option>
+            <option value="6">6/8 (6 Phách)</option>
+          </select>
+        </div>
+        <div class="control-item">
+          <span>Đổi Hợp Âm Sau:</span>
+          <select id="measuresSelect" onchange="resetMetroConfig()">
+            <option value="1">1 Ô Nhịp</option>
+            <option value="2" selected>2 Ô Nhịp</option>
+            <option value="4">4 Ô Nhịp</option>
+          </select>
+        </div>
+      </div>
 
-  <canvas id="visualizer"></canvas>
+      <div class="controls-grid">
+        <div class="control-item">
+          <span>Tốc Độ BPM: <b id="bpmValText" style="color:var(--accent);">80</b></span>
+          <input type="range" id="bpmSlider" min="40" max="220" value="80" style="width:100%; accent-color:var(--accent);" oninput="syncBPM(this.value)">
+        </div>
+        <div class="control-item">
+          <span>Thời Gian Tập:</span>
+          <select id="metroSessionTimeSelect">
+            <option value="60">1 Phút</option>
+            <option value="120" selected>2 Phút</option>
+            <option value="180">3 Phút</option>
+            <option value="300">5 Phút</option>
+            <option value="0">∞ Vô Hạn</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size:0.75rem; color: var(--subtext)">ĐÁNH THEO NHỊP:</div>
+    <div class="target-chord" id="targetChord2">C</div>
+
+    <div class="toggle-box">
+      <input type="checkbox" id="showDiagramMetro" onchange="toggleDiagramMetro()">
+      <label for="showDiagramMetro">👁️ Hiện sơ đồ thế bấm</label>
+    </div>
+    <canvas id="canvasMetro" class="practice-canvas" width="160" height="160"></canvas>
+
+    <div style="background:#0f172a; border:1px solid #334155; padding:6px; border-radius:8px; margin:6px 0; font-size:0.8rem; color:var(--info); font-weight:bold;" id="beatTrackerDisplay">
+      🎵 Phách: - / - | Ô nhịp: - / - | Còn lại: --s
+    </div>
+
+    <div style="font-size:0.8rem; color: var(--subtext); margin-bottom:8px;">
+      Chuẩn bị hợp âm tới: <b id="nextChord2" style="color: #38bdf8;">G</b>
+    </div>
+
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
+
+    <button class="btn" id="startBtn2" onclick="toggleMetroApp()">Bắt Đầu Luyện Nhịp</button>
+  </div>
+
+  <!-- TAB 3: LUYỆN NGHE HỢP ÂM -->
+  <div id="tab-ear" class="tab-content">
+    <div class="timer-score">
+      <div class="stat-box"><div class="val" id="earScore">0/0</div><div class="lbl">Chính xác</div></div>
+      <div class="stat-box"><div class="val" id="earStreak">0</div><div class="lbl">Chuỗi đúng 🔥</div></div>
+    </div>
+
+    <button class="btn" style="background:var(--info); color:#000; margin-bottom:12px;" onclick="playCurrentEarChordSound()">
+      🔊 Phát Lại Âm Hợp Âm
+    </button>
+
+    <div style="font-size:0.8rem; color:var(--subtext);">ĐOÁN XEM ĐÂY LÀ HỢP ÂM GÌ:</div>
+    <div class="ear-options-grid" id="earOptionsGrid"></div>
+    <div id="earFeedbackMsg" style="font-size:0.9rem; font-weight:bold; min-height:24px;"></div>
+  </div>
+
+  <!-- TAB 4: TRA CỨU HỢP ÂM -->
+  <div id="tab-library" class="tab-content">
+    <select class="chord-select" id="chordLibrarySelect" onchange="renderLibraryDiagram()">
+      <optgroup label="Cơ Bản (Mở)">
+        <option value="C">C - Đô Trưởng</option>
+        <option value="Cm">Cm - Đô Thứ (Chặn)</option>
+        <option value="D">D - Rê Trưởng</option>
+        <option value="Dm">Dm - Rê Thứ</option>
+        <option value="E">E - Mi Trưởng</option>
+        <option value="Em">Em - Mi Thứ</option>
+        <option value="F">F - Pha Trưởng (Chặn)</option>
+        <option value="G">G - Sol Trưởng</option>
+        <option value="A">A - La Trưởng</option>
+        <option value="Am">Am - La Thứ</option>
+        <option value="B">B - Si Trưởng (Chặn)</option>
+        <option value="Bm">Bm - Si Thứ (Chặn)</option>
+      </optgroup>
+      <optgroup label="Hợp Âm Chặn Nâng Cao (Barre Chords)">
+        <option value="Am_Barre">Am (Chặn Ngăn 5)</option>
+        <option value="G_Barre">G (Chặn Ngăn 3)</option>
+        <option value="Fm">Fm (Chặn Ngăn 1)</option>
+        <option value="Gm">Gm (Chặn Ngăn 3)</option>
+      </optgroup>
+      <optgroup label="Hợp Âm Thăng / Giáng (# / b)">
+        <option value="C#m">C#m / Dbm (Chặn Ngăn 4)</option>
+        <option value="F#m">F#m / Gbm (Chặn Ngăn 2)</option>
+        <option value="G#m">G#m / Abm (Chặn Ngăn 4)</option>
+        <option value="Bb">Bb / A# (Chặn Ngăn 1)</option>
+        <option value="Eb">Eb / D# (Chặn Ngăn 6)</option>
+        <option value="C#">C# / Db (Chặn Ngăn 4)</option>
+        <option value="F#">F# / Gb (Chặn Ngăn 2)</option>
+      </optgroup>
+      <optgroup label="Hợp Âm 7 & Sus">
+        <option value="C7">C7</option>
+        <option value="Cmaj7">Cmaj7</option>
+        <option value="Csus2">Csus2</option>
+        <option value="Csus4">Csus4</option>
+        <option value="D7">D7</option>
+        <option value="Dmaj7">Dmaj7</option>
+        <option value="Dsus2">Dsus2</option>
+        <option value="Dsus4">Dsus4</option>
+        <option value="E7">E7</option>
+        <option value="Em7">Em7</option>
+        <option value="Am7">Am7</option>
+        <option value="Amaj7">Amaj7</option>
+      </optgroup>
+    </select>
+
+    <button class="btn btn-secondary" style="margin-bottom:8px;" onclick="playLibraryChordAudio()">🔊 Nghe Tiếng Hợp Âm Này</button>
+
+    <canvas id="chordCanvas" width="200" height="200" style="display:block; margin:auto; background:#0f172a; border-radius:10px;"></canvas>
+    <div id="fingeringText" style="margin-top:6px; font-size:0.75rem; color: var(--subtext);"></div>
+  </div>
 </div>
 
-<script>
-  const CHORDS = [
-    { name: 'C', notes: ['C', 'E', 'G'] },
-    { name: 'G', notes: ['G', 'B', 'D'] },
-    { name: 'Am', notes: ['A', 'C', 'E'] },
-    { name: 'Em', notes: ['E', 'G', 'B'] },
-    { name: 'Dm', notes: ['D', 'F', 'A'] },
-    { name: 'D', notes: ['D', 'F#', 'A'] },
-    { name: 'E', notes: ['E', 'G#', 'B'] }
-  ];
+<script type="module">
+  import { BasicPitch, outputToNotesPoly } from 'https://cdn.jsdelivr.net/npm/@spotify/basic-pitch@1.0.1/+esm';
+
+  // DỮ LIỆU HỢP ÂM
+  const DATABASE = {
+    "C":     { notes: ['C','E','G'],      frets: [-1, 3, 2, 0, 1, 0], fingers: ['x', 3, 2, 'o', 1, 'o'], tag: 'C-Am', baseFret: 1 },
+    "Cm":    { notes: ['C','D#','G'],     frets: [-1, 3, 5, 5, 4, 3], fingers: ['x', 1, 3, 4, 2, 1], tag: 'barre', baseFret: 3 },
+    "D":     { notes: ['D','F#','A'],     frets: [-1, -1, 0, 2, 3, 2], fingers: ['x', 'x', 'o', 1, 3, 2], tag: 'G-Em', baseFret: 1 },
+    "Dm":    { notes: ['D','F','A'],      frets: [-1, -1, 0, 2, 3, 1], fingers: ['x', 'x', 'o', 2, 3, 1], tag: 'C-Am', baseFret: 1 },
+    "E":     { notes: ['E','G#','B'],     frets: [0, 2, 2, 1, 0, 0],  fingers: ['o', 2, 3, 1, 'o', 'o'], tag: 'open', baseFret: 1 },
+    "Em":    { notes: ['E','G','B'],      frets: [0, 2, 2, 0, 0, 0],  fingers: ['o', 2, 3, 'o', 'o', 'o'], tag: 'C-Am', baseFret: 1 },
+    "F":     { notes: ['F','A','C'],      frets: [1, 3, 3, 2, 1, 1],  fingers: [1, 3, 4, 2, 1, 1], tag: 'barre', baseFret: 1 },
+    "G":     { notes: ['G','B','D'],      frets: [3, 2, 0, 0, 0, 3],  fingers: [3, 2, 'o', 'o', 'o', 4], tag: 'C-Am', baseFret: 1 },
+    "A":     { notes: ['A','C#','E'],     frets: [-1, 0, 2, 2, 2, 0], fingers: ['x', 'o', 1, 2, 3, 'o'], tag: 'open', baseFret: 1 },
+    "Am":    { notes: ['A','C','E'],      frets: [-1, 0, 2, 2, 1, 0], fingers: ['x', 'o', 2, 3, 1, 'o'], tag: 'C-Am', baseFret: 1 },
+    "B":     { notes: ['B','D#','F#'],    frets: [-1, 2, 4, 4, 4, 2], fingers: ['x', 1, 2, 3, 4, 1], tag: 'barre', baseFret: 2 },
+    "Bm":    { notes: ['B','D','F#'],     frets: [-1, 2, 4, 4, 3, 2], fingers: ['x', 1, 3, 4, 2, 1], tag: 'barre', baseFret: 2 },
+
+    "Am_Barre": { notes: ['A','C','E'],   frets: [5, 7, 7, 5, 5, 5], fingers: [1, 3, 4, 1, 1, 1], tag: 'barre', baseFret: 5 },
+    "G_Barre":  { notes: ['G','B','D'],   frets: [3, 5, 5, 4, 3, 3], fingers: [1, 3, 4, 2, 1, 1], tag: 'barre', baseFret: 3 },
+    "Fm":       { notes: ['F','G#','C'],  frets: [1, 3, 3, 1, 1, 1], fingers: [1, 3, 4, 1, 1, 1], tag: 'barre', baseFret: 1 },
+    "Gm":       { notes: ['G','A#','D'],  frets: [3, 5, 5, 3, 3, 3], fingers: [1, 3, 4, 1, 1, 1], tag: 'barre', baseFret: 3 },
+
+    "C#m":   { notes: ['C#','E','G#'],    frets: [-1, 4, 6, 6, 5, 4], fingers: ['x', 1, 3, 4, 2, 1], tag: 'sharp', baseFret: 4 },
+    "F#m":   { notes: ['F#','A','C#'],    frets: [2, 4, 4, 2, 2, 2], fingers: [1, 3, 4, 1, 1, 1], tag: 'sharp', baseFret: 2 },
+    "G#m":   { notes: ['G#','B','D#'],    frets: [4, 6, 6, 4, 4, 4], fingers: [1, 3, 4, 1, 1, 1], tag: 'sharp', baseFret: 4 },
+    "Bb":    { notes: ['A#','D','F'],     frets: [-1, 1, 3, 3, 3, 1], fingers: ['x', 1, 2, 3, 4, 1], tag: 'sharp', baseFret: 1 },
+    "Eb":    { notes: ['D#','G','A#'],    frets: [-1, 6, 8, 8, 8, 6], fingers: ['x', 1, 2, 3, 4, 1], tag: 'sharp', baseFret: 6 },
+    "C#":    { notes: ['C#','F','G#'],    frets: [-1, 4, 6, 6, 6, 4], fingers: ['x', 1, 2, 3, 4, 1], tag: 'sharp', baseFret: 4 },
+    "F#":    { notes: ['F#','A#','C#'],   frets: [2, 4, 4, 3, 2, 2], fingers: [1, 3, 4, 2, 1, 1], tag: 'sharp', baseFret: 2 },
+
+    "C7":    { notes: ['C','E','G','A#'], frets: [-1, 3, 2, 3, 1, 0], fingers: ['x', 3, 2, 4, 1, 'o'], tag: '7-maj7', baseFret: 1 },
+    "Cmaj7": { notes: ['C','E','G','B'],  frets: [-1, 3, 2, 0, 0, 0], fingers: ['x', 3, 2, 'o', 'o', 'o'], tag: '7-maj7', baseFret: 1 },
+    "Csus2": { notes: ['C','D','G'],      frets: [-1, 3, 0, 0, 1, 0], fingers: ['x', 3, 'o', 'o', 1, 'o'], tag: 'sus', baseFret: 1 },
+    "Csus4": { notes: ['C','F','G'],      frets: [-1, 3, 3, 0, 1, 0], fingers: ['x', 3, 4, 'o', 1, 'o'], tag: 'sus', baseFret: 1 },
+    "D7":    { notes: ['D','F#','A','C'], frets: [-1, -1, 0, 2, 1, 2], fingers: ['x', 'x', 'o', 2, 1, 3], tag: '7-maj7', baseFret: 1 },
+    "Dmaj7": { notes: ['D','F#','A','C#'],frets: [-1, -1, 0, 2, 2, 2], fingers: ['x', 'x', 'o', 1, 1, 1], tag: '7-maj7', baseFret: 1 },
+    "Dsus2": { notes: ['D','E','A'],      frets: [-1, -1, 0, 2, 3, 0], fingers: ['x', 'x', 'o', 1, 3, 'o'], tag: 'sus', baseFret: 1 },
+    "Dsus4": { notes: ['D','G','A'],      frets: [-1, -1, 0, 2, 3, 3], fingers: ['x', 'x', 'o', 1, 3, 4], tag: 'sus', baseFret: 1 },
+    "E7":    { notes: ['E','G#','B','D'], frets: [0, 2, 0, 1, 0, 0],  fingers: ['o', 2, 'o', 1, 'o', 'o'], tag: '7-maj7', baseFret: 1 },
+    "Em7":   { notes: ['E','G','B','D'],  frets: [0, 2, 0, 0, 0, 0],  fingers: ['o', 2, 'o', 'o', 'o', 'o'], tag: '7-maj7', baseFret: 1 },
+    "Am7":   { notes: ['A','C','E','G'],  frets: [-1, 0, 2, 0, 1, 0], fingers: ['x', 'o', 2, 'o', 1, 'o'], tag: '7-maj7', baseFret: 1 },
+    "Amaj7": { notes: ['A','C#','E','G#'],frets: [-1, 0, 2, 1, 2, 0], fingers: ['x', 'o', 2, 1, 3, 'o'], tag: '7-maj7', baseFret: 1 }
+  };
 
   const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+  let basicPitchModel = null;
+  let audioCtx = null;
+  let globalStream = null;
+  let isRunning = false, isAnalyzing = false;
+  let score1 = 0, timeLeft1 = 60, timerInterval1 = null;
+  let currIdx1Key = 'C';
+  let audioAccumulator = [];
+  let activePresets = ['all'];
 
-  let audioCtx, analyser, highpassFilter;
-  let isRunning = false;
-  let score = 0;
-  let timeLeft = 60;
-  let timerInterval;
-  let currentChordIdx = 0;
-
-  let readyForNewStrum = true;
-  let previousVolume = 0;
-
-  function getRandomChordIdx() {
-    let newIdx;
-    do {
-      newIdx = Math.floor(Math.random() * CHORDS.length);
-    } while (newIdx === currentChordIdx);
-    return newIdx;
+  // CẤP QUYỀN MIC 1 LẦN
+  async function getMicStream() {
+    if (globalStream && globalStream.active) return globalStream;
+    globalStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false }
+    });
+    return globalStream;
   }
 
-  function updateChordUI() {
-    const chord = CHORDS[currentChordIdx];
-    document.getElementById('targetChord').innerText = chord.name;
-    document.getElementById('chordNotes').innerText = "Cần vang: " + chord.notes.join(' - ');
+  function initCheckboxGrid() {
+    const grid = document.getElementById('checkboxGrid');
+    grid.innerHTML = '';
+    Object.keys(DATABASE).forEach(key => {
+      const item = document.createElement('label');
+      item.className = 'checkbox-item';
+      item.innerHTML = `<input type="checkbox" value="${key}" class="chord-cb" onchange="window.updateActiveCount()" checked> ${key.replace('_Barre', ' (Chặn)')}`;
+      grid.appendChild(item);
+    });
+    window.updateActiveCount();
+  }
 
-    const container = document.getElementById('notesMatchStatus');
+  window.updateActiveCount = function() {
+    const active = getActiveChords();
+    document.getElementById('activeCountText').innerText = active.length;
+  };
+
+  window.toggleFilterBody = function() {
+    const body = document.getElementById('filterBody');
+    const arrow = document.getElementById('filterArrow');
+    if (body.style.display === 'none') {
+      body.style.display = 'block'; arrow.innerText = '▼';
+    } else {
+      body.style.display = 'none'; arrow.innerText = '▲';
+    }
+  };
+
+  window.togglePreset = function(type) {
+    const btn = document.getElementById(`btn-preset-${type}`);
+    
+    if (type === 'all') {
+      activePresets = ['all'];
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.chord-cb').forEach(cb => cb.checked = true);
+    } else {
+      document.getElementById('btn-preset-all').classList.remove('active');
+      activePresets = activePresets.filter(p => p !== 'all');
+
+      if (btn.classList.contains('active')) {
+        btn.classList.remove('active');
+        activePresets = activePresets.filter(p => p !== type);
+      } else {
+        btn.classList.add('active');
+        activePresets.push(type);
+      }
+
+      if (activePresets.length === 0) {
+        activePresets = ['all'];
+        document.getElementById('btn-preset-all').classList.add('active');
+        document.querySelectorAll('.chord-cb').forEach(cb => cb.checked = true);
+      } else {
+        document.querySelectorAll('.chord-cb').forEach(cb => {
+          const key = cb.value;
+          const data = DATABASE[key];
+          let shouldCheck = false;
+
+          if (activePresets.includes('C-Am') && ['C','Am','F','G','Dm','Em'].includes(key)) shouldCheck = true;
+          if (activePresets.includes('G-Em') && ['G','Em','C','D','Am','Bm'].includes(key)) shouldCheck = true;
+          if (activePresets.includes('barre') && data.tag === 'barre') shouldCheck = true;
+          if (activePresets.includes('sharp') && data.tag === 'sharp') shouldCheck = true;
+          if (activePresets.includes('7-maj7') && data.tag === '7-maj7') shouldCheck = true;
+          if (activePresets.includes('sus') && data.tag === 'sus') shouldCheck = true;
+
+          cb.checked = shouldCheck;
+        });
+      }
+    }
+    window.updateActiveCount();
+  };
+
+  function getActiveChords() {
+    const cbs = document.querySelectorAll('.chord-cb:checked');
+    const list = Array.from(cbs).map(c => c.value);
+    return list.length > 0 ? list : Object.keys(DATABASE);
+  }
+
+  function getRandomActiveChord(excludeKey = null) {
+    const active = getActiveChords();
+    let filtered = active.filter(k => k !== excludeKey);
+    if (filtered.length === 0) filtered = active;
+    return filtered[Math.floor(Math.random() * filtered.length)];
+  }
+
+  function playChordAudio(key) {
+    if (!DATABASE[key]) return;
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 22050 });
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    
+    const openMidi = [40, 45, 50, 55, 59, 64];
+    const frets = DATABASE[key].frets;
+
+    frets.forEach((fret, stringIdx) => {
+      if (fret === -1) return;
+      const midi = openMidi[stringIdx] + fret;
+      const freq = 440 * Math.pow(2, (midi - 69) / 12);
+      const startTime = audioCtx.currentTime + stringIdx * 0.035;
+
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, startTime);
+      gain.gain.setValueAtTime(0.2, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 1.8);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start(startTime);
+      osc.stop(startTime + 1.8);
+    });
+  }
+
+  function drawChordToCanvas(canvasId, key) {
+    const data = DATABASE[key];
+    if (!data) return;
+    const canvas = document.getElementById(canvasId);
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const paddingX = 35, paddingY = 25, width = 105, height = 110;
+    const stringGap = width / 5, fretGap = height / 5;
+
+    ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2;
+
+    for (let i = 0; i < 6; i++) {
+      ctx.beginPath();
+      ctx.moveTo(paddingX + i * stringGap, paddingY);
+      ctx.lineTo(paddingX + i * stringGap, paddingY + height);
+      ctx.stroke();
+    }
+
+    for (let j = 0; j <= 5; j++) {
+      ctx.lineWidth = (j === 0 && data.baseFret === 1) ? 4 : 2;
+      ctx.beginPath();
+      ctx.moveTo(paddingX, paddingY + j * fretGap);
+      ctx.lineTo(paddingX + width, paddingY + j * fretGap);
+      ctx.stroke();
+    }
+
+    if (data.baseFret > 1) {
+      ctx.fillStyle = '#38bdf8'; ctx.font = 'bold 11px sans-serif';
+      ctx.fillText(`${data.baseFret}fr`, 5, paddingY + 15);
+    }
+
+    data.frets.forEach((fret, stringIdx) => {
+      const x = paddingX + stringIdx * stringGap;
+      if (fret === -1) {
+        ctx.fillStyle = '#ef4444'; ctx.font = 'bold 11px sans-serif';
+        ctx.fillText('X', x - 4, paddingY - 6);
+      } else if (fret === 0) {
+        ctx.fillStyle = '#10b981'; ctx.font = 'bold 11px sans-serif';
+        ctx.fillText('O', x - 4, paddingY - 6);
+      } else {
+        const relativeFret = fret - data.baseFret + 1;
+        const y = paddingY + (relativeFret - 0.5) * fretGap;
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.fill();
+
+        ctx.fillStyle = '#000'; ctx.font = 'bold 9px sans-serif';
+        ctx.fillText(data.fingers[stringIdx], x - 3, y + 3);
+      }
+    });
+  }
+
+  window.switchTab = function(tabId) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(ct => ct.classList.remove('active'));
+    
+    event.target.classList.add('active');
+    document.getElementById(tabId).classList.add('active');
+
+    if (tabId === 'tab-library') renderLibraryDiagram();
+    if (tabId === 'tab-ear') nextEarQuestion();
+  };
+
+  // --- TAB 1: AI MIC TRAINER ---
+  window.toggleDiagramMic = function() {
+    const isChecked = document.getElementById('showDiagramMic').checked;
+    const canvas = document.getElementById('canvasMic');
+    canvas.style.display = isChecked ? 'block' : 'none';
+    if (isChecked) drawChordToCanvas('canvasMic', currIdx1Key);
+  };
+
+  function updateMicUI() {
+    const data = DATABASE[currIdx1Key];
+    document.getElementById('targetChord1').innerText = currIdx1Key.replace('_Barre', '');
+    document.getElementById('chordNotes1').innerText = "Nốt cần vang: " + data.notes.join(' - ');
+
+    if (document.getElementById('showDiagramMic').checked) drawChordToCanvas('canvasMic', currIdx1Key);
+
+    const container = document.getElementById('notesMatchStatus1');
     container.innerHTML = '';
-    chord.notes.forEach(note => {
+    data.notes.forEach(note => {
       const tag = document.createElement('div');
       tag.className = 'note-tag';
       tag.id = `note-tag-${note.replace('#', 's')}`;
@@ -223,208 +773,334 @@
     });
   }
 
-  function playSuccessSound() {
-    if (!audioCtx) return;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
-    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.2);
-  }
+  window.nextChordMic = function() {
+    currIdx1Key = getRandomActiveChord(currIdx1Key);
+    updateMicUI();
+  };
 
-  function triggerHit() {
-    score++;
-    document.getElementById('score').innerText = score;
-    playSuccessSound();
-
-    readyForNewStrum = false;
-    updateStrumBadge(false);
-
-    const card = document.getElementById('card');
-    card.classList.remove('flash-success');
-    void card.offsetWidth;
-    card.classList.add('flash-success');
-
-    currentChordIdx = getRandomChordIdx();
-    updateChordUI();
-  }
-
-  function updateStrumBadge(isReady) {
-    const badge = document.getElementById('strumStateBadge');
-    if (isReady) {
-      badge.className = "strum-state state-ready";
-      badge.innerText = "⚡ Sẵn sàng nhận cú gảy";
-    } else {
-      badge.className = "strum-state state-waiting";
-      badge.innerText = "⏳ Hãy quạt một nhịp mới...";
-    }
-  }
-
-  function nextChord() {
-    currentChordIdx = getRandomChordIdx();
-    updateChordUI();
-    readyForNewStrum = true;
-    updateStrumBadge(true);
-  }
-
-  async function toggleApp() {
+  window.toggleMicApp = async function() {
     if (isRunning) return;
+    const statusText = document.getElementById('aiStatusText');
+    const startBtn = document.getElementById('startBtn1');
 
     try {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: false
-        } 
+      statusText.innerText = "🔄 Đang nạp AI Neural Model...";
+      startBtn.disabled = true;
+
+      if (!basicPitchModel) {
+        basicPitchModel = new BasicPitch('https://cdn.jsdelivr.net/npm/@spotify/basic-pitch@1.0.1/model/model.json');
+      }
+
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AudioContextClass({ sampleRate: 22050 });
+      if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+      const stream = await getMicStream();
+      const source = audioCtx.createMediaStreamSource(stream);
+      const scriptNode = audioCtx.createScriptProcessor(2048, 1, 1);
+
+      source.connect(scriptNode);
+      scriptNode.connect(audioCtx.destination);
+
+      scriptNode.onaudioprocess = (e) => {
+        if (!isRunning) return;
+        const inputData = e.inputBuffer.getChannelData(0);
+
+        let sum = 0;
+        for (let i = 0; i < inputData.length; i++) sum += inputData[i] * inputData[i];
+        const rms = Math.sqrt(sum / inputData.length);
+
+        document.getElementById('micVolFill').style.width = Math.min(100, rms * 1500) + '%';
+
+        if (rms > 0.01) {
+          audioAccumulator.push(...inputData);
+          if (audioAccumulator.length >= 22050 * 0.65 && !isAnalyzing) {
+            const bufferChunk = new Float32Array(audioAccumulator);
+            audioAccumulator = [];
+            analyzeWithAI(bufferChunk);
+          }
+        } else {
+          audioAccumulator = [];
+        }
+      };
+
+      isRunning = true; score1 = 0;
+      const initialTime = parseInt(document.getElementById('micTimeSelect').value);
+      timeLeft1 = initialTime === 0 ? 999999 : initialTime;
+
+      document.getElementById('score1').innerText = score1;
+      document.getElementById('time1').innerText = initialTime === 0 ? '∞' : timeLeft1;
+      statusText.innerText = "🟢 AI đang lắng nghe tiếng đàn...";
+      startBtn.innerText = "Đang chạy lượt tập AI...";
+
+      currIdx1Key = getRandomActiveChord();
+      updateMicUI();
+
+      if (initialTime > 0) {
+        timerInterval1 = setInterval(() => {
+          timeLeft1--;
+          document.getElementById('time1').innerText = timeLeft1;
+          if (timeLeft1 <= 0) {
+            clearInterval(timerInterval1); isRunning = false; startBtn.disabled = false;
+            startBtn.innerText = "Thử lại lượt mới";
+            alert(`🎉 Hết giờ! AI ghi nhận bạn đánh đúng ${score1} hợp âm!`);
+          }
+        }, 1000);
+      }
+
+    } catch (err) {
+      statusText.innerText = "❌ Lỗi mở Mic hoặc AI!";
+      startBtn.disabled = false;
+    }
+  };
+
+  async function analyzeWithAI(samples) {
+    isAnalyzing = true;
+    const statusText = document.getElementById('aiStatusText');
+    statusText.innerText = "🤖 AI đang phân tích...";
+
+    try {
+      const audioBuffer = audioCtx.createBuffer(1, samples.length, 22050);
+      audioBuffer.getChannelData(0).set(samples);
+
+      const frames = [], onsets = [], contours = [];
+      await basicPitchModel.evaluateModel(
+        audioBuffer,
+        (f, o, c) => { frames.push(...f); onsets.push(...o); contours.push(...c); },
+        () => {}
+      );
+
+      const parsedNotes = outputToNotesPoly(frames, onsets, 0.15, 0.15, 5);
+      const detectedSet = new Set();
+
+      parsedNotes.forEach(n => {
+        const noteName = NOTE_NAMES[n.pitchMidi % 12];
+        detectedSet.add(noteName);
       });
 
-      const source = audioCtx.createMediaStreamSource(stream);
+      const detectedArray = Array.from(detectedSet);
+      document.getElementById('detectedNotesText').innerText = 
+        "AI nghe thấy: " + (detectedArray.length > 0 ? detectedArray.join(', ') : 'Chưa rõ');
 
-      // Lọc cắt tần số nhiễu gió trầm dưới 130Hz
-      highpassFilter = audioCtx.createBiquadFilter();
-      highpassFilter.type = 'highpass';
-      highpassFilter.frequency.setValueAtTime(130, audioCtx.currentTime);
+      const targetNotes = DATABASE[currIdx1Key].notes;
+      let matchedCount = 0;
 
-      analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 4096;
-
-      source.connect(highpassFilter);
-      highpassFilter.connect(analyser);
-
-      isRunning = true;
-      score = 0;
-      timeLeft = 60;
-      readyForNewStrum = true;
-      document.getElementById('score').innerText = score;
-      document.getElementById('time').innerText = timeLeft;
-      document.getElementById('startBtn').innerText = "Đang chạy đếm giờ (60s)...";
-      document.getElementById('startBtn').style.opacity = "0.7";
-
-      currentChordIdx = Math.floor(Math.random() * CHORDS.length);
-      updateChordUI();
-
-      timerInterval = setInterval(() => {
-        timeLeft--;
-        document.getElementById('time').innerText = timeLeft;
-        if (timeLeft <= 0) endGame();
-      }, 1000);
-
-      processAudio();
-    } catch (err) {
-      alert("Cần cấp quyền truy cập Micro để ứng dụng hoạt động!");
-    }
-  }
-
-  function endGame() {
-    clearInterval(timerInterval);
-    isRunning = false;
-    document.getElementById('startBtn').innerText = "Thử lại lượt mới";
-    document.getElementById('startBtn').style.opacity = "1";
-    alert(`🎉 Hết giờ! Bạn đã đánh chính xác ${score} hợp âm!`);
-  }
-
-  function getChromaAndVolume(analyser, sampleRate) {
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Float32Array(bufferLength);
-    analyser.getFloatFrequencyData(dataArray);
-
-    const chroma = new Float32Array(12).fill(0);
-    let totalEnergy = 0;
-
-    for (let i = 1; i < bufferLength; i++) {
-      const freq = i * sampleRate / analyser.fftSize;
-      
-      if (freq >= 130 && freq <= 1200) {
-        const db = dataArray[i];
-        if (db > -68) {
-          const mag = Math.pow(10, db / 20);
-          totalEnergy += mag;
-          const midiNote = Math.round(12 * Math.log2(freq / 440) + 69);
-          const noteIdx = (midiNote % 12 + 12) % 12;
-          chroma[noteIdx] += mag;
-        }
-      }
-    }
-    return { chroma, volume: totalEnergy };
-  }
-
-  function processAudio() {
-    if (!isRunning) return;
-
-    const { chroma, volume } = getChromaAndVolume(analyser, audioCtx.sampleRate);
-    const targetChord = CHORDS[currentChordIdx];
-
-    const volumeSpike = volume - previousVolume;
-    if (!readyForNewStrum) {
-      if (volumeSpike > 0.08 || volume < 0.005) {
-        readyForNewStrum = true;
-        updateStrumBadge(true);
-      }
-    }
-    previousVolume = volume;
-
-    if (readyForNewStrum && volume > 0.02) {
-      const totalChromaSum = chroma.reduce((a, b) => a + b, 0);
-
-      let chordEnergySum = 0;
-      let matchedNotesCount = 0;
-
-      targetChord.notes.forEach(note => {
-        const noteIdx = NOTE_NAMES.indexOf(note);
+      targetNotes.forEach(note => {
         const tag = document.getElementById(`note-tag-${note.replace('#', 's')}`);
-        
-        chordEnergySum += chroma[noteIdx];
-
-        if (chroma[noteIdx] / (totalChromaSum + 0.0001) > 0.09) {
+        if (detectedSet.has(note)) {
           if (tag) tag.classList.add('active');
-          matchedNotesCount++;
+          matchedCount++;
         } else {
           if (tag) tag.classList.remove('active');
         }
       });
 
-      const harmonicRatio = chordEnergySum / (totalChromaSum + 0.0001);
-
-      if (harmonicRatio > 0.42 && matchedNotesCount === targetChord.notes.length) {
-        triggerHit();
+      if (matchedCount === targetNotes.length) {
+        score1++;
+        document.getElementById('score1').innerText = score1;
+        playChordAudio(currIdx1Key);
+        statusText.innerText = "✨ ĐÁNH ĐÚNG HỢP ÂM!";
+        currIdx1Key = getRandomActiveChord(currIdx1Key);
+        setTimeout(updateMicUI, 500);
+      } else {
+        statusText.innerText = "🟢 AI đang lắng nghe...";
       }
-    } else if (!readyForNewStrum) {
-      targetChord.notes.forEach(note => {
-        const tag = document.getElementById(`note-tag-${note.replace('#', 's')}`);
-        if (tag) tag.classList.remove('active');
-      });
-    }
 
-    drawVisualizer();
-    requestAnimationFrame(processAudio);
-  }
-
-  function drawVisualizer() {
-    const canvas = document.getElementById('visualizer');
-    const ctx = canvas.getContext('2d');
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-    analyser.getByteFrequencyData(dataArray);
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const barWidth = (canvas.width / bufferLength) * 2.5;
-    let x = 0;
-
-    for (let i = 0; i < bufferLength; i++) {
-      const barHeight = dataArray[i] / 5;
-      ctx.fillStyle = readyForNewStrum ? '#10b981' : '#64748b';
-      ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-      x += barWidth + 1;
+    } catch (e) {
+      statusText.innerText = "🟢 AI đang lắng nghe...";
+    } finally {
+      isAnalyzing = false;
     }
   }
+
+  // --- TAB 2: METRONOME ---
+  let isMetroRunning = false, metroTimer = null, progressTimer = null, sessionTimer = null;
+  let currMetroKey = 'C', nextMetroKey = 'G';
+  let bpm = 80, timeSigBeats = 4, measuresPerChord = 2, sessionTimeLeft = 120;
+  let currentBeat = 0, currentMeasure = 1;
+
+  window.syncBPM = function(val) {
+    bpm = parseInt(val) || 80;
+    document.getElementById('bpmSlider').value = bpm;
+    document.getElementById('bpmValText').innerText = bpm;
+    if (isMetroRunning) restartMetroLoop();
+  };
+
+  window.toggleDiagramMetro = function() {
+    const isChecked = document.getElementById('showDiagramMetro').checked;
+    const canvas = document.getElementById('canvasMetro');
+    canvas.style.display = isChecked ? 'block' : 'none';
+    if (isChecked) drawChordToCanvas('canvasMetro', currMetroKey);
+  };
+
+  window.resetMetroConfig = function() {
+    timeSigBeats = parseInt(document.getElementById('timeSigSelect').value);
+    measuresPerChord = parseInt(document.getElementById('measuresSelect').value);
+    if (isMetroRunning) restartMetroLoop();
+  };
+
+  function playMetronomeTick(isAccent = false) {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 22050 });
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(isAccent ? 1000 : 500, audioCtx.currentTime);
+    gain.gain.setValueAtTime(isAccent ? 0.25 : 0.12, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.04);
+  }
+
+  function tickMetroStep() {
+    currentBeat++;
+    if (currentBeat > timeSigBeats) {
+      currentBeat = 1; currentMeasure++;
+      if (currentMeasure > measuresPerChord) {
+        currentMeasure = 1;
+        currMetroKey = nextMetroKey;
+        nextMetroKey = getRandomActiveChord(currMetroKey);
+        
+        document.getElementById('targetChord2').innerText = currMetroKey.replace('_Barre', '');
+        document.getElementById('nextChord2').innerText = nextMetroKey.replace('_Barre', '');
+
+        if (document.getElementById('showDiagramMetro').checked) drawChordToCanvas('canvasMetro', currMetroKey);
+      }
+    }
+
+    playMetronomeTick(currentBeat === 1);
+    const timeStr = sessionTimeLeft >= 9999 ? '∞' : sessionTimeLeft + 's';
+    document.getElementById('beatTrackerDisplay').innerText = 
+      `🎵 Phách: ${currentBeat} / ${timeSigBeats} | Ô nhịp: ${currentMeasure} / ${measuresPerChord} | Còn lại: ${timeStr}`;
+  }
+
+  function startMetroLoop() {
+    const stepInterval = (60 / bpm) * 1000;
+    currentBeat = 0; currentMeasure = measuresPerChord;
+    tickMetroStep();
+
+    metroTimer = setInterval(tickMetroStep, stepInterval);
+    const totalCycleTime = stepInterval * timeSigBeats * measuresPerChord;
+    let cycleStartTime = Date.now();
+
+    progressTimer = setInterval(() => {
+      const elapsed = (Date.now() - cycleStartTime) % totalCycleTime;
+      document.getElementById('progressFill').style.width = (100 - (elapsed / totalCycleTime) * 100) + '%';
+    }, 30);
+  }
+
+  function restartMetroLoop() {
+    clearInterval(metroTimer); clearInterval(progressTimer);
+    startMetroLoop();
+  }
+
+  window.toggleMetroApp = function() {
+    const btn = document.getElementById('startBtn2');
+    if (!isMetroRunning) {
+      isMetroRunning = true; btn.innerText = "Dừng Luyện Nhịp"; btn.classList.add('btn-stop');
+      timeSigBeats = parseInt(document.getElementById('timeSigSelect').value);
+      measuresPerChord = parseInt(document.getElementById('measuresSelect').value);
+      
+      const configSessionTime = parseInt(document.getElementById('metroSessionTimeSelect').value);
+      sessionTimeLeft = configSessionTime === 0 ? 999999 : configSessionTime;
+
+      currMetroKey = getRandomActiveChord();
+      nextMetroKey = getRandomActiveChord(currMetroKey);
+      document.getElementById('targetChord2').innerText = currMetroKey.replace('_Barre', '');
+      document.getElementById('nextChord2').innerText = nextMetroKey.replace('_Barre', '');
+      
+      if (document.getElementById('showDiagramMetro').checked) drawChordToCanvas('canvasMetro', currMetroKey);
+      startMetroLoop();
+
+      if (configSessionTime > 0) {
+        sessionTimer = setInterval(() => {
+          sessionTimeLeft--;
+          if (sessionTimeLeft <= 0) {
+            window.toggleMetroApp();
+            alert("🎉 Đã hoàn thành bài tập đếm nhịp!");
+          }
+        }, 1000);
+      }
+    } else {
+      isMetroRunning = false; btn.innerText = "Bắt Đầu Luyện Nhịp"; btn.classList.remove('btn-stop');
+      clearInterval(metroTimer); clearInterval(progressTimer); clearInterval(sessionTimer);
+      document.getElementById('beatTrackerDisplay').innerText = "🎵 Phách: - / - | Ô nhịp: - / - | Còn lại: --s";
+      document.getElementById('progressFill').style.width = '100%';
+    }
+  };
+
+  // --- TAB 3: EAR TRAINING ---
+  let earCurrentChord = 'C', earCorrectCount = 0, earTotalCount = 0, earStreak = 0;
+
+  window.playCurrentEarChordSound = function() { playChordAudio(earCurrentChord); };
+
+  function nextEarQuestion() {
+    document.getElementById('earFeedbackMsg').innerText = '';
+    earCurrentChord = getRandomActiveChord();
+
+    const activeChords = getActiveChords();
+    let options = [earCurrentChord];
+    while (options.length < Math.min(4, activeChords.length)) {
+      const randomKey = activeChords[Math.floor(Math.random() * activeChords.length)];
+      if (!options.includes(randomKey)) options.push(randomKey);
+    }
+    options.sort(() => Math.random() - 0.5);
+
+    const grid = document.getElementById('earOptionsGrid');
+    grid.innerHTML = '';
+    options.forEach(optKey => {
+      const btn = document.createElement('button');
+      btn.className = 'ear-btn';
+      btn.innerText = optKey.replace('_Barre', '');
+      btn.onclick = () => checkEarAnswer(optKey, btn);
+      grid.appendChild(btn);
+    });
+
+    setTimeout(() => playChordAudio(earCurrentChord), 300);
+  }
+
+  function checkEarAnswer(selectedKey, btnObj) {
+    earTotalCount++;
+    const msg = document.getElementById('earFeedbackMsg');
+    
+    if (selectedKey === earCurrentChord) {
+      btnObj.classList.add('correct');
+      earCorrectCount++; earStreak++;
+      msg.style.color = 'var(--accent)';
+      msg.innerText = `✅ Chính xác! Đó là ${earCurrentChord.replace('_Barre', '')}`;
+    } else {
+      btnObj.classList.add('wrong');
+      earStreak = 0;
+      msg.style.color = 'var(--danger)';
+      msg.innerText = `❌ Sai rồi! Đáp án đúng là ${earCurrentChord.replace('_Barre', '')}`;
+    }
+
+    document.getElementById('earScore').innerText = `${earCorrectCount}/${earTotalCount}`;
+    document.getElementById('earStreak').innerText = earStreak;
+
+    document.querySelectorAll('.ear-btn').forEach(b => b.onclick = null);
+    setTimeout(nextEarQuestion, 1600);
+  }
+
+  // --- TAB 4: CHORD LIBRARY ---
+  function renderLibraryDiagram() {
+    const key = document.getElementById('chordLibrarySelect').value;
+    drawChordToCanvas('chordCanvas', key);
+    const data = DATABASE[key];
+    document.getElementById('fingeringText').innerText = 
+      `Ngón bấm: 1 (Trỏ), 2 (Giữa), 3 (Áp út), 4 (Út) | Ngăn bắt đầu: ${data.baseFret}`;
+  }
+
+  window.renderLibraryDiagram = renderLibraryDiagram;
+
+  window.playLibraryChordAudio = function() {
+    const key = document.getElementById('chordLibrarySelect').value;
+    playChordAudio(key);
+  };
+
+  // KHỞI TẠO
+  initCheckboxGrid();
+  renderLibraryDiagram();
 </script>
 </body>
 </html>
