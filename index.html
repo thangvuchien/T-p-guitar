@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Guitar Master Pro - AI Powered</title>
+  <title>Guitar Master Pro - Thang Veo Edition</title>
   <!-- Nhúng TensorFlow.js cho AI Engine -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
   <style>
@@ -274,7 +274,7 @@
       height: 4px;
       background: #334155;
       border-radius: 2px;
-      margin-top: 4px;
+      margin-top: 6px;
       overflow: hidden;
     }
     .mic-vol-fill {
@@ -286,7 +286,7 @@
     .note-tag {
       background: #334155;
       color: #64748b;
-      padding: 3px 10px;
+      padding: 4px 10px;
       border-radius: 6px;
       font-weight: bold;
       font-size: 0.9rem;
@@ -312,7 +312,7 @@
 <body>
 
 <div class="app-card">
-  <span class="ai-badge">🤖 Powered by Spotify Basic Pitch AI</span>
+  <span class="ai-badge">🤖 Spotify Basic Pitch AI (Auto-Resampled)</span>
 
   <!-- Top Navigation Tabs -->
   <div class="tab-header">
@@ -370,17 +370,17 @@
     </div>
     <canvas id="canvasMic" class="practice-canvas" width="160" height="160"></canvas>
 
-    <div style="font-size:0.8rem; color: var(--subtext); margin-bottom:4px;" id="chordNotes1">Cần vang: C - E - G</div>
+    <div style="font-size:0.8rem; color: var(--subtext); margin-bottom:4px;" id="chordNotes1">Nốt cần vang: C - E - G</div>
 
     <div style="background:#0f172a; border:1px solid #334155; padding:8px; border-radius:10px; margin-bottom:10px;">
-      <div id="aiStatusText" style="font-size:0.75rem; font-weight:bold; color:var(--info);">⚡ Sẵn sàng nạp AI...</div>
-      <div class="mic-vol-bar"><div class="mic-vol-fill" id="micVolFill"></div></div>
-      <div id="detectedNotesText" style="font-size:0.75rem; color:var(--warning); margin-top:4px;">AI nghe thấy: --</div>
+      <div id="aiStatusText" style="font-size:0.8rem; font-weight:bold; color:var(--info);">⏳ Nhấn nút Bắt Đầu để nạp mô hình AI...</div>
+      <div class="mic-vol-bar"><div class="mic-vol-fill" id="volFill"></div></div>
+      <div id="detectedNotesText" style="font-size:0.75rem; color:var(--warning); margin-top:6px; min-height:18px;">AI nghe thấy: --</div>
       <div id="notesMatchStatus1" style="display:flex; justify-content:center; gap:6px; margin-top:6px;"></div>
     </div>
 
-    <button class="btn" id="startBtn1" onclick="toggleMicApp()">⚡ Bật AI & Bắt Đầu Tập</button>
-    <button class="btn btn-secondary" onclick="nextChordMic()">Bỏ qua (Chuyển Hợp Âm)</button>
+    <button class="btn" id="startBtn1" onclick="initAITrainer()">⚡ Bật AI & Bắt Đầu Tập</button>
+    <button class="btn btn-secondary" onclick="nextChordMic()">Bỏ Qua (Đổi Hợp Âm)</button>
   </div>
 
   <!-- TAB 2: LUYỆN NHỊP METRONOME -->
@@ -526,7 +526,7 @@
 <script type="module">
   import { BasicPitch, outputToNotesPoly } from 'https://cdn.jsdelivr.net/npm/@spotify/basic-pitch@1.0.1/+esm';
 
-  // DỮ LIỆU HỢP ÂM
+  // DỮ LIỆU HỢP ÂM CHUẨN ĐẦY ĐỦ
   const DATABASE = {
     "C":     { notes: ['C','E','G'],      frets: [-1, 3, 2, 0, 1, 0], fingers: ['x', 3, 2, 'o', 1, 'o'], tag: 'C-Am', baseFret: 1 },
     "Cm":    { notes: ['C','D#','G'],     frets: [-1, 3, 5, 5, 4, 3], fingers: ['x', 1, 3, 4, 2, 1], tag: 'barre', baseFret: 3 },
@@ -571,21 +571,11 @@
   const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
   let basicPitchModel = null;
   let audioCtx = null;
-  let globalStream = null;
   let isRunning = false, isAnalyzing = false;
-  let score1 = 0, timeLeft1 = 60, timerInterval1 = null;
+  let score1 = 0, timeLeft1 = 60, timerId = null;
   let currIdx1Key = 'C';
   let audioAccumulator = [];
   let activePresets = ['all'];
-
-  // CẤP QUYỀN MIC 1 LẦN
-  async function getMicStream() {
-    if (globalStream && globalStream.active) return globalStream;
-    globalStream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false }
-    });
-    return globalStream;
-  }
 
   function initCheckboxGrid() {
     const grid = document.getElementById('checkboxGrid');
@@ -764,7 +754,7 @@
     if (tabId === 'tab-ear') nextEarQuestion();
   };
 
-  // --- TAB 1: AI MIC TRAINER ---
+  // --- TAB 1: AI MIC TRAINER (THUẬT TOÁN ĐUÔI 025 CHUẨN ĐÉT) ---
   window.toggleDiagramMic = function() {
     const isChecked = document.getElementById('showDiagramMic').checked;
     const canvas = document.getElementById('canvasMic');
@@ -795,24 +785,30 @@
     updateMicUI();
   };
 
-  window.toggleMicApp = async function() {
+  // KHỞI TẠO AI THEO ĐÚNG CẤU TRÚC FILE 025
+  window.initAITrainer = async function() {
     if (isRunning) return;
+
     const statusText = document.getElementById('aiStatusText');
     const startBtn = document.getElementById('startBtn1');
 
     try {
-      statusText.innerText = "🔄 Đang nạp AI Neural Model...";
+      statusText.innerText = "🔄 Đang nạp AI Neural Network...";
       startBtn.disabled = true;
 
+      // 1. Tải mô hình Spotify
       if (!basicPitchModel) {
         basicPitchModel = new BasicPitch('https://cdn.jsdelivr.net/npm/@spotify/basic-pitch@1.0.1/model/model.json');
       }
 
+      // 2. Ép AudioContext về chuẩn 22050Hz của Spotify Model
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
       audioCtx = new AudioContextClass({ sampleRate: 22050 });
-      if (audioCtx.state === 'suspended') await audioCtx.resume();
 
-      const stream = await getMicStream();
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false } 
+      });
+
       const source = audioCtx.createMediaStreamSource(stream);
       const scriptNode = audioCtx.createScriptProcessor(2048, 1, 1);
 
@@ -823,21 +819,28 @@
         if (!isRunning) return;
         const inputData = e.inputBuffer.getChannelData(0);
 
+        // Tính RMS đo âm lượng thực tế
         let sum = 0;
         for (let i = 0; i < inputData.length; i++) sum += inputData[i] * inputData[i];
         const rms = Math.sqrt(sum / inputData.length);
 
-        document.getElementById('micVolFill').style.width = Math.min(100, rms * 1500) + '%';
+        // Cập nhật thanh hiển thị Mic
+        document.getElementById('volFill').style.width = Math.min(100, rms * 1500) + '%';
 
+        // Lọc nhiễu gió: chỉ tích lũy tín hiệu khi có lực gảy thực tế (rms > 0.01)
         if (rms > 0.01) {
           audioAccumulator.push(...inputData);
+
+          // Tích lũy đủ 0.65s tiếng đàn mới chuyển cho AI phân tích
           if (audioAccumulator.length >= 22050 * 0.65 && !isAnalyzing) {
             const bufferChunk = new Float32Array(audioAccumulator);
             audioAccumulator = [];
-            analyzeWithAI(bufferChunk);
+            analyzeChunkWithAI(bufferChunk);
           }
         } else {
-          audioAccumulator = [];
+          if (audioAccumulator.length > 0 && !isAnalyzing) {
+            audioAccumulator = [];
+          }
         }
       };
 
@@ -848,17 +851,17 @@
       document.getElementById('score1').innerText = score1;
       document.getElementById('time1').innerText = initialTime === 0 ? '∞' : timeLeft1;
       statusText.innerText = "🟢 AI đang lắng nghe tiếng đàn...";
-      startBtn.innerText = "Đang chạy lượt tập AI...";
+      startBtn.innerText = "Đang chạy lượt tập...";
 
       currIdx1Key = getRandomActiveChord();
       updateMicUI();
 
       if (initialTime > 0) {
-        timerInterval1 = setInterval(() => {
+        timerId = setInterval(() => {
           timeLeft1--;
           document.getElementById('time1').innerText = timeLeft1;
           if (timeLeft1 <= 0) {
-            clearInterval(timerInterval1); isRunning = false; startBtn.disabled = false;
+            clearInterval(timerId); isRunning = false; startBtn.disabled = false;
             startBtn.innerText = "Thử lại lượt mới";
             alert(`🎉 Hết giờ! AI ghi nhận bạn đánh đúng ${score1} hợp âm!`);
           }
@@ -866,15 +869,15 @@
       }
 
     } catch (err) {
-      statusText.innerText = "❌ Lỗi mở Mic hoặc AI!";
+      statusText.innerText = "❌ Lỗi mở Mic hoặc trình duyệt chặn!";
       startBtn.disabled = false;
     }
   };
 
-  async function analyzeWithAI(samples) {
+  async function analyzeChunkWithAI(samples) {
     isAnalyzing = true;
     const statusText = document.getElementById('aiStatusText');
-    statusText.innerText = "🤖 AI đang phân tích...";
+    statusText.innerText = "🤖 AI đang phân tích nốt...";
 
     try {
       const audioBuffer = audioCtx.createBuffer(1, samples.length, 22050);
@@ -887,6 +890,7 @@
         () => {}
       );
 
+      // Hạ ngưỡng phát hiện nốt xuống 0.15 như bản 025 để bắt nhạy hơn
       const parsedNotes = outputToNotesPoly(frames, onsets, 0.15, 0.15, 5);
       const detectedSet = new Set();
 
@@ -899,6 +903,7 @@
       document.getElementById('detectedNotesText').innerText = 
         "AI nghe thấy: " + (detectedArray.length > 0 ? detectedArray.join(', ') : 'Chưa rõ');
 
+      // So sánh chính xác nốt hợp âm
       const targetNotes = DATABASE[currIdx1Key].notes;
       let matchedCount = 0;
 
@@ -920,11 +925,11 @@
         currIdx1Key = getRandomActiveChord(currIdx1Key);
         setTimeout(updateMicUI, 500);
       } else {
-        statusText.innerText = "🟢 AI đang lắng nghe...";
+        statusText.innerText = "🟢 AI đang lắng nghe tiếng đàn...";
       }
 
     } catch (e) {
-      statusText.innerText = "🟢 AI đang lắng nghe...";
+      statusText.innerText = "🟢 AI đang lắng nghe tiếng đàn...";
     } finally {
       isAnalyzing = false;
     }
